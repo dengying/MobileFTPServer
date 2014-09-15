@@ -1,7 +1,6 @@
 package com.dy.mobileftpserver;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -19,6 +18,8 @@ import org.apache.ftpserver.FtpServerFactory;
 import org.apache.ftpserver.ftplet.FtpException;
 import org.apache.ftpserver.listener.ListenerFactory;
 import org.apache.ftpserver.usermanager.PropertiesUserManagerFactory;
+
+import com.dy.mobileftpserver.config.FTPConfigInfo;
 
 import android.app.Activity;
 import android.content.Context;
@@ -42,14 +43,15 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
-public class MainActivity extends ActionBarActivity implements
-		NavigationDrawerFragment.NavigationDrawerCallbacks {
+public class MainActivity extends ActionBarActivity implements NavigationDrawerFragment.NavigationDrawerCallbacks {
 
-	private static FtpServer mFtpServer;  
-    private static String ftpConfigDir= Environment.getExternalStorageDirectory().getAbsolutePath()+"/ftpConfig/";  
-    private static Handler handler=new Handler();
-    private static EditText path;
-	
+	private static FtpServer mFtpServer;
+	private static String ftpConfigFileName = "users.properties";
+	private static Handler handler = new Handler();
+	private static EditText path;
+	public static MainActivity currentInstance = null;
+	public static FTPConfigInfo ftpConfigInfo;
+
 	/**
 	 * Fragment managing the behaviors, interactions and presentation of the
 	 * navigation drawer.
@@ -65,41 +67,33 @@ public class MainActivity extends ActionBarActivity implements
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		currentInstance = this;
 		setContentView(R.layout.activity_main);
 
-		mNavigationDrawerFragment = (NavigationDrawerFragment) getSupportFragmentManager()
-				.findFragmentById(R.id.navigation_drawer);
+		mNavigationDrawerFragment = (NavigationDrawerFragment) getSupportFragmentManager().findFragmentById(R.id.navigation_drawer);
 		mTitle = getTitle();
 
 		// Set up the drawer.
-		mNavigationDrawerFragment.setUp(R.id.navigation_drawer,
-				(DrawerLayout) findViewById(R.id.drawer_layout));
-		
-		AsyncTask< String, Integer, String> task=new AsyncTask<String, Integer, String>(){
+		mNavigationDrawerFragment.setUp(R.id.navigation_drawer, (DrawerLayout) findViewById(R.id.drawer_layout));
+
+		AsyncTask<String, Integer, String> task = new AsyncTask<String, Integer, String>() {
 			@Override
 			protected String doInBackground(String... arg0) {
 				// TODO Auto-generated method stub
-				File f=new File(ftpConfigDir);  
-				if(!f.exists()) { 
-					f.mkdir();  
-				}
-				copyResourceFile(R.raw.users, ftpConfigDir+"users.properties");  
-				Config1();  
+				copyResourceFile(R.raw.users);
+				Config1();
 				return null;
 			}
 		};
 		task.execute("");
-		
+
 	}
 
 	@Override
 	public void onNavigationDrawerItemSelected(int position) {
 		// update the main content by replacing fragments
 		FragmentManager fragmentManager = getSupportFragmentManager();
-		fragmentManager
-				.beginTransaction()
-				.replace(R.id.container,
-						PlaceholderFragment.newInstance(position + 1)).commit();
+		fragmentManager.beginTransaction().replace(R.id.container, PlaceholderFragment.newInstance(position + 1)).commit();
 	}
 
 	public void onSectionAttached(int number) {
@@ -173,37 +167,33 @@ public class MainActivity extends ActionBarActivity implements
 		}
 
 		@Override
-		public View onCreateView(LayoutInflater inflater, ViewGroup container,
-				Bundle savedInstanceState) {
-			View rootView = inflater.inflate(R.layout.fragment_main, container,
-					false);
-			TextView textView = (TextView) rootView
-					.findViewById(R.id.section_label);
-			textView.setText(Integer.toString(getArguments().getInt(
-					ARG_SECTION_NUMBER)));
-			path=(EditText) rootView.findViewById(R.id.txt_path);
-			path.setText("ftp://"+getLocalIpAddress()+":4050");
-			final Button btn_launcher=(Button) rootView.findViewById(R.id.btn_ftp_launcher);
+		public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+			View rootView = inflater.inflate(R.layout.fragment_main, container, false);
+			TextView textView = (TextView) rootView.findViewById(R.id.section_label);
+			textView.setText(Integer.toString(getArguments().getInt(ARG_SECTION_NUMBER)));
+			path = (EditText) rootView.findViewById(R.id.txt_path);
+			path.setText("ftp://" + getLocalIpAddress() + ":4050");
+			final Button btn_launcher = (Button) rootView.findViewById(R.id.btn_ftp_launcher);
 			btn_launcher.setText("关闭");
 			btn_launcher.setOnClickListener(new OnClickListener() {
-				
+
 				@Override
 				public void onClick(View arg0) {
-					
-					if(mFtpServer!=null){
-						if(mFtpServer.isStopped()){
-							try{
+
+					if (mFtpServer != null) {
+						if (mFtpServer.isStopped()) {
+							try {
 								Config1();
 								btn_launcher.setText("关闭");
-							}catch(Exception e){
+							} catch (Exception e) {
 								e.printStackTrace();
 							}
-						}else{
+						} else {
 							mFtpServer.stop();
 							btn_launcher.setText("启动");
 						}
 					}
-					
+
 				}
 			});
 			return rootView;
@@ -212,23 +202,20 @@ public class MainActivity extends ActionBarActivity implements
 		@Override
 		public void onAttach(Activity activity) {
 			super.onAttach(activity);
-			((MainActivity) activity).onSectionAttached(getArguments().getInt(
-					ARG_SECTION_NUMBER));
+			((MainActivity) activity).onSectionAttached(getArguments().getInt(ARG_SECTION_NUMBER));
 		}
 	}
-	
+
 	public static String getLocalIpAddress() {
 		String strIP = null;
 		try {
-			for (Enumeration<NetworkInterface> en = NetworkInterface
-					.getNetworkInterfaces(); en.hasMoreElements();) {
+			for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
 				NetworkInterface intf = en.nextElement();
-				for (Enumeration<InetAddress> enumIpAddr = intf
-						.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+				for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
 					InetAddress inetAddress = enumIpAddr.nextElement();
 					if (!inetAddress.isLoopbackAddress()) {
 						strIP = inetAddress.getHostAddress().toString();
-						if(strIP!=null && isIPAddress(strIP.trim())){
+						if (strIP != null && isIPAddress(strIP.trim())) {
 							return strIP;
 						}
 					}
@@ -239,9 +226,10 @@ public class MainActivity extends ActionBarActivity implements
 		}
 		return strIP;
 	}
-	
+
 	/**
 	 * 校验 IP地址
+	 * 
 	 * @param ipaddr
 	 * @return
 	 */
@@ -254,12 +242,12 @@ public class MainActivity extends ActionBarActivity implements
 		return flag;
 	}
 
-	private void copyResourceFile(int rid, String targetFile) {
+	private void copyResourceFile(int rid) {
 		InputStream fin = ((Context) this).getResources().openRawResource(rid);
 		FileOutputStream fos = null;
 		int length;
 		try {
-			fos = new FileOutputStream(targetFile);
+			fos = openFileOutput(ftpConfigFileName, MainActivity.MODE_PRIVATE);
 			byte[] buffer = new byte[1024];
 			while ((length = fin.read(buffer)) != -1) {
 				fos.write(buffer, 0, length);
@@ -296,37 +284,29 @@ public class MainActivity extends ActionBarActivity implements
 
 		PropertiesUserManagerFactory userManagerFactory = new PropertiesUserManagerFactory();
 
-		String[] str = { "mkdir", ftpConfigDir };
 		try {
-			Process ps = Runtime.getRuntime().exec(str);
-			try {
-				ps.waitFor();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
+			Properties props = new Properties();
+			props.load(MainActivity.currentInstance.openFileInput(ftpConfigFileName));
+			Enumeration<?> e = props.propertyNames();
+			if (e.hasMoreElements()) {
+				while (e.hasMoreElements()) {
+					String s = (String) e.nextElement();
+					props.setProperty(s, props.getProperty(s));
+				}
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
+			props.setProperty("ftpserver.user.admin.homedirectory", Environment.getExternalStorageDirectory().getAbsolutePath());
+			props.setProperty("ftpserver.user.anonymous.homedirectory", Environment.getExternalStorageDirectory().getAbsolutePath());
+			props.store(MainActivity.currentInstance.openFileOutput(ftpConfigFileName, MainActivity.MODE_PRIVATE), null);
+			ftpConfigInfo=new FTPConfigInfo();
+			ftpConfigInfo.setAnonymousHomedirectory(props.getProperty("ftpserver.user.anonymous.homedirectory"));
+			ftpConfigInfo.setAnonymousUserpassword(props.getProperty("ftpserver.user.anonymous.userpassword"));
+			ftpConfigInfo.setAdminHomedirectory(props.getProperty("ftpserver.user.admin.homedirectory"));
+			ftpConfigInfo.setAdminUserpassword(props.getProperty("ftpserver.user.admin.userpassword"));
+		} catch (Exception e2) {
+			e2.printStackTrace();
 		}
 
-		String filename = ftpConfigDir + "users.properties";// "/sdcard/users.properties";
-		try{
-			Properties props=new Properties();
-			props.load(new FileInputStream(filename));
-			Enumeration<?> e = props.propertyNames();
-			if(e.hasMoreElements()){
-			    while(e.hasMoreElements()){
-			    	String s = (String)e.nextElement();
-			    	props.setProperty(s, props.getProperty(s));
-			    }
-			}
-		    props.setProperty("ftpserver.user.admin.homedirectory", Environment.getExternalStorageDirectory().getAbsolutePath());
-		    props.setProperty("ftpserver.user.anonymous.homedirectory",  Environment.getExternalStorageDirectory().getAbsolutePath());
-		    props.store(new FileOutputStream(filename), null);
-	   }catch (Exception e2) {
-		e2.printStackTrace();
-	   }
-
-		File files = new File(filename);
+		File files = MainActivity.currentInstance.getFileStreamPath(ftpConfigFileName);
 		userManagerFactory.setFile(files);
 		serverFactory.setUserManager(userManagerFactory.createUserManager());
 		// set the port of the listener
@@ -341,12 +321,12 @@ public class MainActivity extends ActionBarActivity implements
 		try {
 			server.start();
 			handler.post(new Runnable() {
-				
+
 				@Override
 				public void run() {
 					// TODO Auto-generated method stub
-					if(path!=null){
-						path.setText("ftp://"+getLocalIpAddress()+":4050");
+					if (path != null) {
+						path.setText("ftp://" + getLocalIpAddress() + ":4050");
 					}
 				}
 			});
@@ -354,15 +334,15 @@ public class MainActivity extends ActionBarActivity implements
 			e.printStackTrace();
 		}
 	}
-	
-	@Override  
-    protected void onDestroy() {  
-        super.onDestroy();  
-          
-        if(null != mFtpServer) {  
-            mFtpServer.stop();  
-            mFtpServer = null;  
-        }  
-    }  
+
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+
+		if (null != mFtpServer) {
+			mFtpServer.stop();
+			mFtpServer = null;
+		}
+	}
 
 }

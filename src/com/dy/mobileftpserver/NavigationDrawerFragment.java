@@ -1,4 +1,4 @@
-package com.example.mobileftpserver;
+package com.dy.mobileftpserver;
 
 import android.support.v7.app.ActionBarActivity;
 import android.app.Activity;
